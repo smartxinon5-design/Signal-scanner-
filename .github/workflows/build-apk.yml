@@ -1,0 +1,47 @@
+name: Build Signal Scanner APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Android project
+        run: |
+          mkdir extracted
+          ZIP=$(find . -maxdepth 1 -type f -name "*.zip" | head -1)
+          echo "Using ZIP: $ZIP"
+          unzip -q "$ZIP" -d extracted
+
+      - name: Find project
+        id: project
+        run: |
+          PROJECT=$(find extracted -name settings.gradle -type f -print -quit | xargs dirname)
+          echo "PROJECT=$PROJECT" >> "$GITHUB_OUTPUT"
+          echo "Android project: $PROJECT"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        working-directory: ${{ steps.project.outputs.PROJECT }}
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SignalScanner-debug
+          path: ${{ steps.project.outputs.PROJECT }}/app/build/outputs/apk/debug/*.apk
